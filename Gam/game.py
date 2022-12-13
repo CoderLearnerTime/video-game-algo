@@ -6,7 +6,7 @@ pygame.init()
 
 # CONSTANTS
 SIZE = SCREEN_WIDTH, SCREEN_HEIGHT = (1280, 768)
-
+FONT = pygame.font.Font('assets/font/8bit.ttf', 24)
 
 screen = pygame.display.set_mode(SIZE)
 highlight_item = pygame.Surface((48, 48), pygame.SRCALPHA)
@@ -14,8 +14,9 @@ highlight_item.fill((255, 255, 255, 128))
 collisionMap = pygame.image.load('assets/map/test.png').convert_alpha()
 bg = pygame.image.load('assets/map/maintest.png').convert_alpha()
 
+clock = pygame.time.Clock()
 pygame.mouse.set_visible(False)
-
+pygame.display.set_caption("rpg game")
 # Player sprite
 player_actions = ['idle', 'left', 'right', 'up', 'down']
 player_img = {}
@@ -37,6 +38,18 @@ knife_img = {}
 for img in sprite_list:
     filename = 'assets/weapon/knife_' + img + '.png'
     knife_img[img] = pygame.image.load(filename).convert_alpha()
+
+element_list = [
+    #prot   normal fire  ice  ground air  light  dark
+            [1.1 , 0.75, 0.5 , 1.0 , 2.0 , 0.8 , 1.0 ],
+            [1.2 , 2.4 , 0.5 , 0.5 , 1.0 , 0.8 , 1.0 ],
+            [1.2 , 1.0 , 2.0 , 0.5 , 1.0 , 0.8 , 1.0 ],
+            [1.1 , 0.5 , 1.0 , 2.0 , 0.75, 0.8 , 1.0 ],
+            [1.2 , 1.0 , 1.0 , 1.0 , 1.0 , 0.75, 2.0 ],
+            [1.4 , 1.25, 1.25, 1.25, 1.25, 2.0 , 0.75],
+            [1.0 , 0.9 , 0.9 , 0.9 , 0.9 , 0.7 , 0.9 ]
+]
+
 
 class Sprite(pygame.sprite.Sprite):
     def __init__(self):
@@ -188,26 +201,30 @@ class Inventory(Sprite):
         self.rect = self.surf.get_rect()
         self.rect.move_ip(390, 110)
 
-
 class Player (Sprite):
-    def __init__(self):
+    def __init__(self, x, y):
         super(Player, self).__init__()
         self.surf = player_img['idle']
         self.rect = self.surf.get_rect()
         self.control = True
         self.openInventory = False
         self.inventory = []
+        self.rect.x = x
+        self.rect.y = y
+        self.pos = (x,y)
         # labeled 0-15, len = 16
         self.delay = pygame.time.get_ticks()
-        self.health = 10
+        self.health = 100
         self.dmg = 10
-        self.element = ''
+        self.elementDmg =  0
+        self.elementProt = 0
         self.money = 0
         self.openInterface = False
         # modify these instance variables based on weapon, armor, items, etc
 
     def update(self, mouse_pos, mouse_click, keys, touching, hitting):
         # Movement
+        self.pos = (self.rect.x, self.rect.y)
         if (self.control == True):
             if keys[K_UP]:
                 self.rect.move_ip(0,-1)
@@ -308,9 +325,14 @@ class Player (Sprite):
             else:
                 player.money += item.quantity
                 item.kill()
+    def getHit(self, enemy):
+        finalDmg = enemy.dmg
+        enemyElement = enemy.elementDmg
+        dmgMultiplier = element_list[enemyElement][self.elementProt]
+        self.health -= finalDmg * dmgMultiplier
 
 class Enemy (Sprite):
-    def __init__(self, posx, posy, type):
+    def __init__(self, posx, posy, type, dmg):
         super(Enemy, self).__init__()
         filename = 'assets/entity/' + type + '_idle.png'
         self.surf = pygame.image.load(filename).convert_alpha()
@@ -320,40 +342,94 @@ class Enemy (Sprite):
         self.rect.y = posy
         self.initUpdate = 0
         self.cur_node = 0
-
+        self.elementDmg =  0
+        self.elementProt = 0
+        self.playerPos = player.pos
+        self.speed = 1
+        self.dmg = dmg
 
     def getHit(self, dmg, element):
         pass
     def update(self):
         # if player has updated position (so that new path needs to be found) or init
         # path needs to be found, find path with a*
-        g = 100000
-        path = []
-        if playerPrevPos != (player.rect.x, player.rect.y) or self.initUpdate == 0:
-            dx, dy = player.rect.x - self.rect.x, player.rect.y - self.rect.y
-            dist = Math.hypot(dx, dy)
-            if (dist < 100):
+        self.g = 100000
+        if (self.playerPos[0] != player.pos[0]) or (self.playerPos[1] != player.pos[1]) or self.initUpdate == 0:
+            hdx, hdy = player.rect.x - self.rect.x, player.rect.y - self.rect.y
+            dist = Math.hypot(hdx, hdy)
+            if (dist < 1700):
                 miniPath = pathfinding.aStar.findPath(self, player, collisionMap)
             # take the distance from the player to the enemy
 
-                if miniPath:
-                    g = miniPath[-1]
-                path = []
+                if miniPath is not None:
+                    g = miniPath[1]
+                    #print(miniPath[0])
+                self.path = []
+
+                
             # if distance is close enough, create full size path of points to follow
-                if g < 10: 
-                    for node in miniPath:
-                        path.append((node[0] * 32 - 16), (node[1] * 32 - 16))
+                try:
+                    if g < 10: 
+                        for node in miniPath[0]:
+                            self.path.append([node[0] * 32 - 16, node[1] * 32 - 16])
+                            #print("append")
                 # set initUpdate to 1 to show that has been initialized
-                    self.initUpdate = 1
+                        self.initUpdate = 1
+                    dx, dy = self.path[0][0] - self.rect.x, self.path[0][1] - self.rect.y
+                    self.cur_node = 0
+                    dist = abs(Math.hypot(dx, dy))
+
+                    if -24 <= dist <= 24:
+                        dx, dy = self.path[1][0] - self.rect.x, self.path[1][1] - self.rect.y
+                        self.cur_node = 1
+                        dist = abs(Math.hypot(dx, dy))
+                    
+                    if dx > 0:
+                        dx = int(Math.ceil(dx / dist))
+                    elif dx < 0:
+                        dx = int(Math.floor(dx / dist))
+                    if dy > 0:
+                        dy = int(Math.ceil(dy / dist))
+                    elif dy < 0:
+                        dy = int(Math.floor(dy / dist))
+                    self.rect.move_ip(dx, dy)
+                                  
+                except:
+                    pass
+                
+            #print(self.path)
+            self.playerPos = (player.rect.x, player.rect.y)
         # if path exists, follow path
-        if path:
-            dx, dy = self.rect.x - path[self.cur_node][0], self.rect.y - path[self.cur_node][1]
-            if dx == 0 and dy == 0:
-                self.cur_node += 1
-            dist = Math.hypot(dx, dy)
-            dx, dy = dx / dist, dy / dist
-            self.rect.x += dx * self.speed
-            self.rect.y += dy * self.speed
+        elif self.path is not None:
+            #print(self.cur_node)
+            if self.cur_node >= (len(self.path) - 1):
+                #print(len(self.path))
+                if pygame.sprite.collide_rect(self, player):
+                    player.getHit(self)
+            elif self.cur_node < (len(self.path) - 1):
+                dx, dy = self.path[self.cur_node][0] - self.rect.x, self.path[self.cur_node][1] - self.rect.y
+                if -3 <= dx <= 3 and -3 <= dy <= 3:
+                    self.cur_node += 1
+                    dx, dy = (self.path[self.cur_node][0] - self.rect.x), (self.path[self.cur_node][1] - self.rect.y)
+                
+                dist = abs(Math.hypot(dx, dy))
+
+                if dx > 0:
+                    dx = int(Math.ceil(dx / dist))
+                elif dx < 0:
+                    dx = int(Math.floor(dx / dist))
+                if dy > 0:
+                    dy = int(Math.ceil(dy / dist))
+                elif dy < 0:
+                    dy = int(Math.floor(dy / dist))
+                
+                self.rect.move_ip(dx, dy)
+                    
+        # for index, node in enumerate(self.path):
+            # if index == 0:
+                # pygame.draw.rect(screen, (255,0, 255), pygame.Rect(node[0] + 16, node[1] + 16, 32, 32))
+            # else:
+                # pygame.draw.rect(screen, (255,0,0), pygame.Rect(node[0] + 16, node[1] + 16, 32, 32))
 
 
 class Chest (Sprite):
@@ -449,12 +525,11 @@ inventoryGroup = pygame.sprite.Group()
 inventories = pygame.sprite.Group()
 
 coin = Money(10, 200, 100)
-player = Player()
-playerPrevPos = (player.rect.x, player.rect.y)
+player = Player(100, 100)
 chest = Chest(600, 300, 0)
 item = Weapon('sword', 1, 1, '')
 axe = Weapon('axe', 1, 1, '', 400, 100)
-zombie = Enemy(1000, 500, 'zombie')
+zombie = Enemy(200, 500, 'zombie', 10)
 
 
 all_sprites.add(player)
@@ -463,7 +538,9 @@ all_sprites.add(item)
 all_sprites.add(axe)
 all_sprites.add(coin)
 all_sprites.add(zombie)
+
 enemies.add(zombie)
+
 items.add(item)
 items.add(coin)
 items.add(axe)
@@ -488,6 +565,7 @@ while running:
     pressed_keys = pygame.key.get_pressed()
     touching_tiles = pygame.sprite.groupcollide(tiles, players, False, False)
     hitting_enemies = pygame.sprite.groupcollide(enemies, cursor_, False, False)
+    print(player.health)
     frame += 1
     if frame > speed:
         player.update(mouse_pos, mouse_click, pressed_keys, touching_tiles, hitting_enemies)
@@ -497,8 +575,6 @@ while running:
     screen.blit(bg, (0,0))
     cursor.rect.center = mouse_pos
     
-
-    print(player.money)
     for entity in all_sprites:
         if entity.exist() == True:
             screen.blit(entity.surf, entity.rect)
@@ -508,7 +584,7 @@ while running:
         for item in inventoryGroup:
             screen.blit(item.surf, item.rect)
     f += 1
-    if f> 1:
+    if f> 2:
         enemies.update()
         f =0
     
@@ -517,6 +593,7 @@ while running:
     tiles.update(mouse_pos, mouse_click)
  
     # Flip the display
+    clock.tick(120)
     pygame.display.flip()
 
 # Done! Time to quit.
