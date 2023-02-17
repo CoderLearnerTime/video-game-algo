@@ -1,5 +1,5 @@
 import math as Math
-import pygame, random, pathfinding
+import pygame, random, pathfinding, lootGenerator
 from pygame import *
 from pathfinding import *
 pygame.init()
@@ -8,23 +8,28 @@ pygame.init()
 SIZE = SCREEN_WIDTH, SCREEN_HEIGHT = (1280, 768)
 FONT = pygame.font.Font('assets/font/8bit.ttf', 24)
 
+
+# initialize surfaces/images
 screen = pygame.display.set_mode(SIZE)
 highlight_item = pygame.Surface((48, 48), pygame.SRCALPHA)
 highlight_item.fill((255, 255, 255, 128))
 collisionMap = pygame.image.load('assets/map/test.png').convert_alpha()
 bg = pygame.image.load('assets/map/maintest.png').convert_alpha()
 
+# pygame clock
 clock = pygame.time.Clock()
-pygame.mouse.set_visible(False)
+
+# caption
 pygame.display.set_caption("rpg game")
-# Player sprite
+
+# loading player sprite
 player_actions = ['idle', 'left', 'right', 'up', 'down']
 player_img = {}
 for img in player_actions:
     filename = 'assets/player/player_' + img + '.png'
     player_img[img] = pygame.image.load(filename).convert_alpha()
 
-# Weapon sprite
+# loading weapon sprites
 sprite_list = ['0', '1', '2', '3']
 axe_img = {}
 for img in sprite_list:
@@ -50,7 +55,7 @@ element_list = [
             [1.0 , 0.9 , 0.9 , 0.9 , 0.9 , 0.7 , 0.9 ]
 ]
 
-
+# initializing base sprite class
 class Sprite(pygame.sprite.Sprite):
     def __init__(self):
         super(Sprite, self).__init__()
@@ -61,62 +66,53 @@ class Sprite(pygame.sprite.Sprite):
     def exist(self):
         return True
 
+# custom cursor
+pygame.mouse.set_visible(False)
 cursor = Sprite()
 cursor.surf = pygame.image.load('assets/player/cursor.png').convert_alpha()
 cursor.rect = cursor.surf.get_rect()
 
 
 class Item (Sprite):
-    def __init__(self, type, subclass, x = 0, y = 0):
+    def __init__(self, name, subclass, quantity, x = 0, y = 0):
         super(Item, self).__init__()
-        filename = 'assets/' + subclass + '/'  + str(type) + '_0.png'
+        filename = 'assets/' + subclass + '/'  + str(name) + '_0.png'
         self.surf = pygame.image.load(filename).convert_alpha()
         self.def_img = self.surf
-        self.subclass = subclass
         self.rect = self.surf.get_rect()
         self.rect.x = x
         self.rect.y = y
-        self.type = type
+
+        self.name = name
+        self.subclass = subclass
+        self.quantity = quantity
+
         self.onGround = True
-        self.inChest = False
-        self.inInventory = False
-        self.active = False
-        self.existing = False
+        # onGround = False means item is in inventory
         self.tick = 0
         self.frame = 0
 
     def setGround(self, on):
         self.onGround = on
 
-    def setChest(self, chest):
-        self.inChest = chest
-
-    def setInventory(self, holding):
-        self.inInventory = holding
-
-    def setActive(self, active):
-        self.active = active
-
     def holding(self):
         return self.inInventory
     
+    # pick up item method: tests if inventory isn't full, then appends item to inventory list
     def pickUp(self):
         if len(player.inventory) < 15:
             player.pickUpItem(self)
             self.onGround = False
-            self.existing = False
-            self.inInventory = True
         else:
             print("Inventory full!")
             # have image in text on screen with fading letters
-    
-    def exist(self):
-        return self.existing
 
+    # update function runs constantly in main loop
     def update(self, mouse_pos, mouse_click):
         
+        # onGround items
         if (self.onGround == True):
-            self.existing = True
+            # floating animation
             self.tick += 1
             if self.tick > 15:
                 self.frame += 1
@@ -127,20 +123,22 @@ class Item (Sprite):
                 else:
                     self.frame = 0
                 self.tick = 0
-
+            # highlight on hover
             if (self.rect.collidepoint(mouse_pos)) & (player.openInventory == False):
                 highlight_type = self.type + "_highlight"
                 filename = 'assets/' + self.subclass + '/' + str(highlight_type) + '.png'
                 self.surf = pygame.image.load(filename).convert_alpha()
-
+                # pick up item if clicked
                 if mouse_click:
                     dist = Math.sqrt(((player.rect.x + 32) - (self.rect.x + 32))**2 + ((player.rect.y + 32) - (self.rect.y + 32))**2)
                     if (-128 <= dist <= 128):
                         self.pickUp()
                         
             else:
+                # unhighlights the img if the pointer is off the item
                 self.surf = self.def_img
         elif ((self.inInventory) & (player.openInventory) & (player.control == False)):
+            # highlights item in inventory on hover
             self.surf = self.def_img
             if self.rect.collidepoint(mouse_pos):
                 self.highlight = highlight_item.copy()
@@ -150,47 +148,7 @@ class Item (Sprite):
             
                 
         # if condition for in inventory, hover img, moving in inventorry, drop from inventory
-
-    
-class Weapon (Item):
-    def __init__(self, type, dmg, range, element, x=0, y=0):
-        super(Weapon, self).__init__(type, 'weapon', x, y)
-        self.type = type
-        self.dmg = dmg
-        self.range = range
-        self.element = element
-
-    def getDmg(self):
-        return self.dmg
-
-    def getElement(self):
-        return self.element
-
-    def getRange(self):
-        return self.range
-
-class Armor (Item):
-    def __init__(self, type, health, durability):
-        super(Item, self).__init__(type, 'armor')
-        self.health = health
-        self.durability = durability
-
-    def setElement(self, element):
-        self.element = element
-
-class Money (Item):
-    def __init__(self, quantity, x=0, y=0):
-        super(Money, self).__init__('coin', 'misc', x, y)
-        self.quantity = quantity
-
-class Usable (Item):
-    def __init__(self, type):
-        super(Usable, self).__init__(type, 'usable')
-
-class Artifact (Item):
-    def __init__(self, type):
-        super(Artifact, self).__init__(type, 'artifact')
-        
+# player and chest inventory class (needs to show up on screen so needs to be sprite)
 class Inventory(Sprite):
     def __init__(self, type):
         super(Inventory, self).__init__()
@@ -200,6 +158,15 @@ class Inventory(Sprite):
             self.surf = pygame.image.load('assets/inventory/chest_inventory_0.png')
         self.rect = self.surf.get_rect()
         self.rect.move_ip(390, 110)
+
+hpbar = Sprite()
+hpbar.surf = pygame.image.load('assets/player/healthbar.png').convert_alpha()
+hpbar.rect = hpbar.surf.get_rect()
+HPBROWN = (90, 58, 23)
+HPRED = (146,0,0)
+HPDARKRED = (115,0,0)
+hpbar.rect.move_ip(25, 25)
+
 
 class Player (Sprite):
     def __init__(self, x, y):
@@ -213,8 +180,10 @@ class Player (Sprite):
         self.rect.y = y
         self.pos = (x,y)
         # labeled 0-15, len = 16
-        self.delay = pygame.time.get_ticks()
+        self.invDelay = pygame.time.get_ticks()
+        self.hitDelay = pygame.time.get_ticks()
         self.health = 100
+        self.maxHealth = 100
         self.dmg = 10
         self.elementDmg =  0
         self.elementProt = 0
@@ -225,11 +194,15 @@ class Player (Sprite):
     def update(self, mouse_pos, mouse_click, keys, touching, hitting):
         # Movement
         self.pos = (self.rect.x, self.rect.y)
+
+        # makes sure player has control (so not in inventory) and checks for keys pressed to allow movement
         if (self.control == True):
             if keys[K_UP]:
                 self.rect.move_ip(0,-1)
                 self.surf = player_img['up']
                 for tile in touching:
+                    # if player is touching a tile (like a chest), makes sure that it can't go through the tile
+                    # tests if player is below the tile and moves them back to not inside of the tile
                     if((3 < player.rect.right - tile.rect.left < 125) & (player.rect.y >= tile.rect.y)):
                         player.rect.top = tile.rect.bottom
             elif keys[K_DOWN]:
@@ -259,12 +232,13 @@ class Player (Sprite):
                         enemy.getHit(self.dmg, self.element)
         
         if keys[K_e]:
-            if((self.delay-pygame.time.get_ticks()) < -200):
+            # delays inventory opening so don't lag game
+            if((self.invDelay-pygame.time.get_ticks()) < -200):
                 if ((self.openInventory == False) & (self.openInterface == False)):
-                    self.delay = pygame.time.get_ticks()
+                    self.invDelay = pygame.time.get_ticks()
                     self.accessInventory()
                 elif (self.openInventory) or (self.openInterface == True):
-                    self.delay = pygame.time.get_ticks()
+                    self.invDelay = pygame.time.get_ticks()
                     self.closeInterface()
         # Screen boundaries
         if self.rect.left < 0:
@@ -280,10 +254,14 @@ class Player (Sprite):
         self.control = False
         self.openInventory = True
         for i in range(4): 
+            # adds items that are in inventory onto the screen and moves them to fit with the inventory sprite
+            # to give appearance of being in the slots
             try:
                 player.inventory[i].rect.x, player.inventory[i].rect.y = ((402 + 68 * i), 122)
                 inventoryGroup.add(player.inventory[i])
                 continue
+            # the try and except statements account for inventory not being full/empty slots so doesn't
+            # give an index-out-of-bounds-error
             except IndexError:
                 pass
         for i in range(4): 
@@ -312,6 +290,7 @@ class Player (Sprite):
         inventories.add(self.playerInv)
 
     def closeInterface(self):
+        # closes any inventory that are open
         self.control = True
         self.openInventory = False
         self.openInterface = False
@@ -320,19 +299,36 @@ class Player (Sprite):
 
     def pickUpItem(self, item):
         if len(self.inventory) < 16:
-            if ((isinstance(item, Money)) == False):
+            if (item.name != "coins"):
                 self.inventory.append(item)
             else:
                 player.money += item.quantity
                 item.kill()
+    
+    def drawHealthBar(self):
+        pygame.draw.rect(screen, (0,0,0), ((87,33), (self.maxHealth * 4 + 12, 4)))
+        pygame.draw.rect(screen, (HPBROWN), ((87,37), (self.maxHealth * 4 + 4, 4)))
+        pygame.draw.rect(screen, (0,0,0), ((87,41), (self.maxHealth * 4 + 4, 4)))
+        pygame.draw.rect(screen, (HPRED), ((87,45), (self.health * 4, 12)))
+        pygame.draw.rect(screen, (HPDARKRED), ((87,57), (self.health * 4, 12)))
+        pygame.draw.rect(screen, (0,0,0), ((87,68), (self.maxHealth * 4 + 4, 4)))
+        pygame.draw.rect(screen, (HPBROWN), ((87,72), (self.maxHealth * 4 + 4, 4)))
+        pygame.draw.rect(screen, (0,0,0), ((87,76), (self.maxHealth * 4 + 12, 4)))
+
+        pygame.draw.rect(screen, (HPBROWN), ((91 + self.maxHealth * 4, 37), (4, 39)))
+        pygame.draw.rect(screen, (0,0,0), ((95 + self.maxHealth * 4, 37), (4, 40)))
+        pygame.draw.rect(screen, (0,0,0), ((87 + self.maxHealth * 4, 41), (4, 28)))
+
     def getHit(self, enemy):
         finalDmg = enemy.dmg
         enemyElement = enemy.elementDmg
         dmgMultiplier = element_list[enemyElement][self.elementProt]
-        self.health -= finalDmg * dmgMultiplier
+        if((self.hitDelay - pygame.time.get_ticks()) < -300):
+            self.hitDelay = pygame.time.get_ticks()
+            self.health -= finalDmg * dmgMultiplier
 
 class Enemy (Sprite):
-    def __init__(self, posx, posy, type, dmg):
+    def __init__(self, posx, posy, type, dmg, hp):
         super(Enemy, self).__init__()
         filename = 'assets/entity/' + type + '_idle.png'
         self.surf = pygame.image.load(filename).convert_alpha()
@@ -347,17 +343,22 @@ class Enemy (Sprite):
         self.playerPos = player.pos
         self.speed = 1
         self.dmg = dmg
+        self.hp = hp
 
     def getHit(self, dmg, element):
         pass
-    def update(self):
-        # if player has updated position (so that new path needs to be found) or init
-        # path needs to be found, find path with a*
+    def die(self):
+        dropList = lootGenerator.entityLoot(player.stage, self.type)
+        for item in dropList:
+            pass
+        self.kill()
+    def pathfind(self):
         self.g = 100000
         if (self.playerPos[0] != player.pos[0]) or (self.playerPos[1] != player.pos[1]) or self.initUpdate == 0:
             hdx, hdy = player.rect.x - self.rect.x, player.rect.y - self.rect.y
             dist = Math.hypot(hdx, hdy)
             if (dist < 1700):
+                
                 miniPath = pathfinding.aStar.findPath(self, player, collisionMap)
             # take the distance from the player to the enemy
 
@@ -424,12 +425,14 @@ class Enemy (Sprite):
                     dy = int(Math.floor(dy / dist))
                 
                 self.rect.move_ip(dx, dy)
-                    
-        # for index, node in enumerate(self.path):
-            # if index == 0:
-                # pygame.draw.rect(screen, (255,0, 255), pygame.Rect(node[0] + 16, node[1] + 16, 32, 32))
-            # else:
-                # pygame.draw.rect(screen, (255,0,0), pygame.Rect(node[0] + 16, node[1] + 16, 32, 32))
+    def update(self):
+        self.pathfind()
+        if pygame.sprite.collide_rect(self, player):
+            player.getHit(self)
+        if (self.hp <= 0):
+            self.die()
+        print(player.hitDelay)
+
 
 
 class Chest (Sprite):
@@ -444,48 +447,10 @@ class Chest (Sprite):
         self.open = False
         self.content = []
         self.fill(type)
-        # run Mathod to fill container
+        # run method to fill container
 
     def fill(self, type):
-        # Money
-        if (type == 0):
-            coins = random.randint(1, 10)
-            self.content.append(Money(coins))
-        elif (type == 1):
-            coins = random.randint(15,30)
-            self.content.append(Money(coins))
-        elif(type == 2):
-            coins = random.randint (30, 75)
-            self.content.append(Money(coins))
-        
-        # Slot 2 
-        if (type == 0):
-            chance = random.randint(1, 20)
-            if (chance < 11):
-                if (chance < 6):
-                    pass
-                    #potion
-
-        elif (type == 1):
-            pass
-        elif (type == 2):
-            pass
-        
-        # Slot 3 
-        if (type == 0):
-            pass
-        elif (type == 1):
-            pass
-        elif (type == 2):
-            pass
-
-        # Slot 4 
-        if (type == 0):
-            pass
-        elif (type == 1):
-            pass
-        elif (type == 2):
-            pass
+        pass
     def getType(self):
         return self.type
     
@@ -524,26 +489,20 @@ items = pygame.sprite.Group()
 inventoryGroup = pygame.sprite.Group()
 inventories = pygame.sprite.Group()
 
-coin = Money(10, 200, 100)
 player = Player(100, 100)
 chest = Chest(600, 300, 0)
-item = Weapon('sword', 1, 1, '')
-axe = Weapon('axe', 1, 1, '', 400, 100)
-zombie = Enemy(200, 500, 'zombie', 10)
+zombie = Enemy(200, 500, 'zombie', 10, 10)
 
 
 all_sprites.add(player)
 all_sprites.add(chest)
-all_sprites.add(item)
-all_sprites.add(axe)
-all_sprites.add(coin)
 all_sprites.add(zombie)
+all_sprites.add(hpbar)
 
 enemies.add(zombie)
 
-items.add(item)
-items.add(coin)
-items.add(axe)
+
+
 tiles.add(chest)
 players.add(player)
 cursor_.add(cursor)
@@ -591,9 +550,8 @@ while running:
     screen.blit(cursor.surf, cursor.rect)
     items.update(mouse_pos, mouse_click)
     tiles.update(mouse_pos, mouse_click)
- 
+    player.drawHealthBar()
     # Flip the display
-    clock.tick(120)
     pygame.display.flip()
 
 # Done! Time to quit.

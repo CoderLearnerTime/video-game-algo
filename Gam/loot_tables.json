@@ -1,0 +1,62 @@
+{
+    "entity": [
+        {
+            "type": "zombie",
+            "drops": [
+                {
+                    "name": "entity_coins",
+                    "weight": 25
+                },
+                {
+                    "name": "armor",
+                    "quantity": 1,
+                    "weight" : 13
+                },
+                {
+                    "name": "weapon",
+                    "quantity": 1,
+                    "weight" : 12
+                },
+                {
+                    "name": null,
+                    "quantity": 1,
+                    "weight" : 50
+                }
+            ]
+        },
+        {
+            "type": ""
+        }
+    ],
+
+    "chest": [
+        {
+            "type": 0,
+            "drops": [
+                {
+                    "loot": "coins",
+                    "quantity": [1, 25]
+                }
+            ]
+        },
+        {
+            "type": 1,
+            "drops": [
+                {
+                    "loot": "coins",
+                    "quantity": [50, 100]
+                }
+            ]
+        },
+        {
+            "type": 2,
+            "drops": [
+                {
+                    "loot": "coins",
+                    "quantity": [150, 300]
+                }
+            ]
+        }
+
+    ]
+}

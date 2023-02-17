@@ -1,0 +1,185 @@
+{
+    "armor":
+    {
+        "0": [{
+            "leather_helm": 
+            {
+                "protection": 4
+            },
+            "leather_chest": 
+            {
+                "protection": 10
+            },
+            "leather_pants":
+            {
+                "protection": 8
+            },
+            "leather_boots":
+            {
+                "protection": 4
+            }
+        }
+        ],
+        "1": [{
+            "mail_helm": 
+            {
+                "protection": 6
+            },
+            "mail_chest": 
+            {
+                "protection": 12
+            },
+            "mail_greaves":
+            {
+                "protection": 10
+            },
+            "mail_boots":
+            {
+                "protection": 6
+            }
+        }
+        ],
+        "2": [{
+            "knight_helm": 
+            {
+                "protection": 8
+            },
+            "knight_chest": 
+            {
+                "protection": 16
+            },
+            "knight_greaves":
+            {
+                "protection": 12
+            },
+            "knight_boots":
+            {
+                "protection": 8
+            }
+        }
+        ],
+        "3": [{
+            "ruby_helm": 
+            {
+                "protection": 12
+            },
+            "ruby_chest": 
+            {
+                "protection": 18
+            },
+            "ruby_greaves":
+            {
+                "protection": 14
+            },
+            "ruby_boots":
+            {
+                "protection": 10
+            }
+        }
+        ],
+        
+        "4": [{
+            "titanium_helm": 
+            {
+                "protection": 16
+            },
+            "titanium_chest": 
+            {
+                "protection": 22
+            },
+            "titanium_greaves":
+            {
+                "protection": 18
+            },
+            "titanium_boots":
+            {
+                "protection": 14
+            }
+        }
+        ]
+    },
+
+    "weapon":
+    {
+        "0": {
+            "sword":
+            {
+                "dmg": 25,
+                "range": 2,
+                "speed": 3
+            },
+            "knife":
+            {
+                "dmg": 20,
+                "range": 1,
+                "speed": 4
+            },
+            "axe":
+            {
+                "dmg": 35,
+                "range": 2,
+                "speed": 2
+            },
+            "spear":
+            {
+                "dmg": 20,
+                "range": 4,
+                "speed": 3
+            }
+        },
+        "1": {
+            "bow":
+            {
+                "type": "range",
+                "dmg": 30,
+                "speed": 3,
+                "arrowSpeed": 1
+            },
+            "hammer":
+            {
+                "dmg": 60,
+                "range": 3,
+                "speed": 1
+            }
+        },
+        "2": {
+            "sword_upgrade":
+            {
+                "dmg": 50,
+                "range": 2,
+                "speed": 4
+            },
+            "bow_upgrade":
+            {
+                "type": "range",
+                "dmg": 50,
+                "speed": 4,
+                "arrowSpeed":2
+            },
+            "axe_upgrade":
+            {
+                "dmg": 90,
+                "range": 2,
+                "speed": 2
+            }
+        },
+        "3": ["spear_upgrade", "knife_upgrade", "hammer_upgrade", "crossbow"],
+        "4": ["sword_max", "axe_max", "spear_max", "knife_max", "bow_max", "hammer_max", "crossbow_max"]
+    },
+
+    "entity_coins":
+    [
+        [1, 10],
+        [11, 20],
+        [21, 30],
+        [31, 40],
+        [41, 50]
+    ],
+    
+    "potions":
+    [
+        {
+
+        }
+    ]
+}
