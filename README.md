@@ -8,4 +8,4 @@ Prior to installation: install pygame (and of course python)
 
 Python download: https://www.python.org/downloads/ (for Windows users, make sure to check Add to PATH in installation if it pops up)
 
-Pygame: in the command line, run: python -m pip install -U pygame --user (if this doesn't run then try python3 instead of python)
+To install the required packages for this project, run: pip install -r requirements.txt
