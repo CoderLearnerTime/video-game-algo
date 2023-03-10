@@ -1,7 +1,11 @@
 import math as Math
-import pygame, random, pathfinding, lootGenerator
+import pygame
+import random
+import pathfinding
+import lootGenerator
 from pygame import *
 from pathfinding import *
+
 pygame.init()
 
 # CONSTANTS
@@ -13,8 +17,11 @@ FONT = pygame.font.Font('assets/font/8bit.ttf', 24)
 screen = pygame.display.set_mode(SIZE)
 highlight_item = pygame.Surface((48, 48), pygame.SRCALPHA)
 highlight_item.fill((255, 255, 255, 128))
+hit_flash = pygame.Surface((1278, 766), pygame.SRCALPHA)
+hit_flash.fill((255, 64, 64, 96))
 collisionMap = pygame.image.load('assets/map/test.png').convert_alpha()
 bg = pygame.image.load('assets/map/maintest.png').convert_alpha()
+
 
 # pygame clock
 clock = pygame.time.Clock()
@@ -167,6 +174,10 @@ HPRED = (146,0,0)
 HPDARKRED = (115,0,0)
 hpbar.rect.move_ip(25, 25)
 
+endGame = Sprite()
+endGame.surf = pygame.image.load('assets/map/gameover.png').convert_alpha()
+endGame.rect = endGame.surf.get_rect()
+
 
 class Player (Sprite):
     def __init__(self, x, y):
@@ -182,12 +193,14 @@ class Player (Sprite):
         # labeled 0-15, len = 16
         self.invDelay = pygame.time.get_ticks()
         self.hitDelay = pygame.time.get_ticks()
+        self.knockbackDelay = pygame.time.get_ticks() - 300
         self.health = 100
         self.maxHealth = 100
         self.dmg = 10
         self.elementDmg =  0
         self.elementProt = 0
         self.money = 0
+        self.enemyHit = None
         self.openInterface = False
         # modify these instance variables based on weapon, armor, items, etc
 
@@ -249,6 +262,21 @@ class Player (Sprite):
             self.rect.top = 0
         if self.rect.bottom >= SCREEN_HEIGHT:
             self.rect.bottom = SCREEN_HEIGHT
+
+        if ((pygame.time.get_ticks() - self.knockbackDelay) < 300):
+            if (pygame.time.get_ticks() % 2 != 1):
+                dx = float(self.enemyHit.rect.x) - float(self.rect.x)
+                dy = float(self.enemyHit.rect.y) - float(self.rect.y)
+                norm = Math.sqrt(dx ** 2.0 + dy ** 2.0)
+                x, y = -3 * dx / norm, -3 * dy / norm
+                self.rect.move_ip(int(x),int(y))
+                self.control = False
+        else :
+            self.control = True
+        if(((self.hitDelay - pygame.time.get_ticks()) > -200 )and (pygame.time.get_ticks() > 200)):
+            self.hit = hit_flash.copy()
+            screen.blit(self.hit, (0, 0))
+            
 
     def accessInventory(self):
         self.control = False
@@ -324,8 +352,15 @@ class Player (Sprite):
         enemyElement = enemy.elementDmg
         dmgMultiplier = element_list[enemyElement][self.elementProt]
         if((self.hitDelay - pygame.time.get_ticks()) < -300):
+            self.knockbackDelay = pygame.time.get_ticks()
             self.hitDelay = pygame.time.get_ticks()
+            self.enemyHit = enemy
             self.health -= finalDmg * dmgMultiplier
+
+        if (self.health < 0):
+            self.control = False
+            endGame.set_alpha(0)
+            
 
 class Enemy (Sprite):
     def __init__(self, posx, posy, type, dmg, hp):
@@ -426,12 +461,14 @@ class Enemy (Sprite):
                 
                 self.rect.move_ip(dx, dy)
     def update(self):
-        self.pathfind()
+
+        if(pygame.time.get_ticks() % 8 != 1):
+            self.pathfind()
         if pygame.sprite.collide_rect(self, player):
             player.getHit(self)
         if (self.hp <= 0):
             self.die()
-        print(player.hitDelay)
+        
 
 
 
@@ -476,7 +513,36 @@ class Chest (Sprite):
             else:
                 self.surf = self.def_img
 
-# if mouse_pos in rect then randomize loot, open window to show interface of loot, change chest sprite to open
+
+class Wall (Sprite):
+    def __init__(self, x, y):
+        super(Wall, self).__init__()
+        # initialize sprite, use img, 32*32, and x and y
+        # add collision
+
+# load img
+#procMap = PIL.Image.open('assets/map/test.png')
+#mapArray = procMap.load()
+
+# function for updating each screen
+#def updateStage(theStage, theRoom):
+#    for i in range(40):
+#        for j in range(24):
+            # if color in the config map is black, then that area in main
+            # map is an edge wall (use different sprite imgs)
+#            if (mapArray[i,j] == (0,0,0)):
+#                wall = Wall((i * 32), (j * 32), theRoom, theStage, "edgeWall")
+            # if color is red, then pillar
+#            if (mapArray[i,j] == (255,0,0)):
+#                wall = Wall((i * 32), (j * 32), theRoom, theStage, "pillar")
+            # if green, then door
+#            if (mapArray[i,j] == (0,255,0)):
+#                wall = Wall((i * 32), (j * 32), theRoom, theStage, "door")
+
+# init stage and room at 0           
+stage = 0
+room = 0                
+#updateStage(stage, room)
 
 frame = 0
 speed = 0
@@ -500,12 +566,11 @@ all_sprites.add(zombie)
 all_sprites.add(hpbar)
 
 enemies.add(zombie)
-
-
-
 tiles.add(chest)
 players.add(player)
 cursor_.add(cursor)
+
+
 
 running = True
 f=0
@@ -524,11 +589,8 @@ while running:
     pressed_keys = pygame.key.get_pressed()
     touching_tiles = pygame.sprite.groupcollide(tiles, players, False, False)
     hitting_enemies = pygame.sprite.groupcollide(enemies, cursor_, False, False)
-    print(player.health)
-    frame += 1
-    if frame > speed:
-        player.update(mouse_pos, mouse_click, pressed_keys, touching_tiles, hitting_enemies)
-        frame = 0
+    #print(player.health)
+    
 
     screen.fill((100, 100, 100))
     screen.blit(bg, (0,0))
@@ -546,13 +608,15 @@ while running:
     if f> 2:
         enemies.update()
         f =0
+    frame += 1
+    if frame > speed:
+        player.update(mouse_pos, mouse_click, pressed_keys, touching_tiles, hitting_enemies)
+        frame = 0
     
     screen.blit(cursor.surf, cursor.rect)
     items.update(mouse_pos, mouse_click)
     tiles.update(mouse_pos, mouse_click)
     player.drawHealthBar()
-    # Flip the display
     pygame.display.flip()
 
-# Done! Time to quit.
 pygame.quit()
